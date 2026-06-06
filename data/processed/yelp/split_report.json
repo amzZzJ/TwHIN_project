@@ -1,0 +1,40 @@
+{
+  "dataset": "Yelp Open Dataset",
+  "state_filter": "PA",
+  "entities": {
+    "user": 434918,
+    "business": 34039,
+    "total": 468957
+  },
+  "relations": {
+    "review": {
+      "edges": 1598960,
+      "coverage": "high",
+      "twhin_analog": "engagement"
+    },
+    "tip": {
+      "edges": 193609,
+      "coverage": "low",
+      "twhin_analog": "ad_engagement"
+    },
+    "friend": {
+      "edges": 1271665,
+      "coverage": "high",
+      "twhin_analog": "follow"
+    }
+  },
+  "total_edges": 3064234,
+  "splits": {
+    "train": 0.85,
+    "val": 0.05,
+    "test": 0.1
+  },
+  "ablations": [
+    "all",
+    "no_tip",
+    "no_friend",
+    "review_only",
+    "tip_only",
+    "friend_only"
+  ]
+}
