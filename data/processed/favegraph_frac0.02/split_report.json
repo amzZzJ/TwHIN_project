@@ -1,0 +1,17 @@
+{
+  "edges_after_leakfree": 5436534,
+  "dropped_coldstart": 235886,
+  "n_users": 262614,
+  "n_tweets": 1803009,
+  "split_counts": {
+    "test": 74247,
+    "train": 5263114,
+    "val": 99173
+  },
+  "params": {
+    "user_frac": 0.02,
+    "train_max": 180,
+    "val_max": 186,
+    "seed": 42
+  }
+}
