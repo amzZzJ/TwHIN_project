@@ -1,0 +1,41 @@
+data_dir: /home/nikita/DL/recsys/yelp
+out_dir: ./outputs/yelp_graph
+state: PA
+train_end: '2020-12-31'
+val_end: '2021-06-30'
+include_categories: true
+include_city: true
+max_categories_per_business: 5
+friend_test_frac: 0.1
+embedding_dim: 128
+batch_size: 4096
+epochs: 50
+lr: 0.001
+weight_decay: 0.0
+negative_samples: 32
+num_workers: 4
+mixed_precision: true
+grad_clip_norm: 1.0
+seed: 42
+negative_sampling:
+  strategy: frequency
+  power: 0.75
+  corrupt: both
+sampled_softmax:
+  candidates: 64
+  logq_correction: false
+eval:
+  recall_ks:
+  - 10
+  - 20
+  - 50
+  faiss_gpu: false
+score_fn: dot
+optimizer: adagrad
+mixture:
+  n_clusters: 1000
+  top_m: 3
+  kmeans_iters: 25
+personalized:
+  min_session: 3
+  max_users: 4000

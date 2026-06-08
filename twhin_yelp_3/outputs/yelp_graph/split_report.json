@@ -1,0 +1,36 @@
+{
+  "dataset": "Yelp Open Dataset",
+  "state": "PA",
+  "entities": {
+    "users": 434918,
+    "businesses": 34039,
+    "categories": 1158,
+    "cities": 434,
+    "total": 470549
+  },
+  "relations": {
+    "review": 0,
+    "tip": 1,
+    "friend": 2,
+    "in_category": 3,
+    "located_in": 4
+  },
+  "splits": {
+    "train_end": "2020-12-31",
+    "val_end": "2021-06-30",
+    "test_after": "2021-06-30"
+  },
+  "edges": {
+    "review_train": 1490530,
+    "review_val": 48934,
+    "review_test": 59496,
+    "tip_train": 187331,
+    "tip_val": 3083,
+    "tip_test": 3195,
+    "friend_train": 1144499,
+    "friend_test": 122860,
+    "in_category_train": 128661,
+    "located_in_train": 34039
+  },
+  "total_train_edges": 2985060
+}
