@@ -1,48 +1,68 @@
-# TwHIN — FaveGraph preprocessing
+# TwHIN: воспроизведение на открытых данных
 
-Препроцессинг датасета **TwitterFaveGraph** в единый формат триплетов для обучения
-графовых эмбеддингов.
+Учебный проект (НИУ ВШЭ): разбор, критика и частичное воспроизведение статьи
+**TwHIN — Embedding the Twitter Heterogeneous Information Network for Personalized
+Recommendation** (El-Kishky et al., KDD 2022) на открытых данных.
 
-## Что делает код
-Ноутбук `notebooks/favegraph.ipynb`:
-1. загружает данные из `data/raw/TwitterFaveGraph.csv.zip`;
-2. берет подвыборку по пользователям;
-3. дедуплицирует ребра, строит глобальные сквозные ID для всех сущностей;
-4. делает временной train/val/test сплит по `time_chunk`, без утечки (из val/test
-   убираются сущности, которых нет в train);
-5. считает EDA (активность по времени, распределения степеней);
-6. пишет результат в `data/processed/favegraph_<вариант подвыборки>/`.
+Оригинальная модель обучена на закрытом графе Twitter (>10⁹ узлов, >10¹¹ рёбер),
+поэтому прямое воспроизведение невозможно. Мы воспроизводим саму идею метода на
+публичных датасетах меньшего масштаба и проверяем ключевые тезисы статьи.
 
-## Исходные данные
-- Источник: HuggingFace — **`Twitter/TwitterFaveGraph`**
-  (https://huggingface.co/datasets/Twitter/TwitterFaveGraph)
-- Архив `TwitterFaveGraph.csv.zip` нужно положить в папку `data/raw/`
+## Что воспроизводится
 
-## Установка
-```bash
-git clone git@github.com:amzZzJ/TwHIN_project.git
-cd TwHIN_project
-python3 -m venv .venv && source .venv/bin/activate
-python -m pip install polars pyarrow huggingface_hub matplotlib ipykernel ipywidgets
+- **Модель:** TransE со скорингом-дотом `f(s,r,t) = (θ_s + θ_r)·θ_t`,
+  обучение через negative sampling (формула 2), оптимизатор Adagrad.
+- **Mixture-of-embeddings**: пользователь как смесь кластеров его интересов.
+- **Лоссы:** negative sampling, а также sampled-softmax и sampled-softmax + logQ-коррекция.
+- **Negative sampling:** порча source/target сущностями того же типа; режимы uniform и
+  пропорционально частоте (frequency).
+
+## Исследовательские вопросы
+
+1. Воспроизводится ли эффект гетерогенности (совместное обучение разных типов рёбер) на открытых данных?
+2. Какие типы рёбер вносят наибольший вклад?
+3. Выигрывает ли современный лосс (sampled-softmax + logQ) у классического negative sampling?
+
+## Датасеты
+
+Два датасета закрывают разные оси экспериментов.
+
+### Yelp Open Dataset — гетерогенность
+Гетерогенный граф (один штат, PA): сущности `user` / `business`, отношения
+`review` (high-coverage), `tip` (low-coverage), `friend` (high-coverage).
+Используется для проверки эффекта гетерогенности и mixture-of-embeddings.
+
+### TwitterFaveGraph — лоссы и негативы
+Открытый граф лайков `user → tweet` (HuggingFace `Twitter/TwitterFaveGraph`),
+~283M рёбер; берётся подвыборка 2% пользователей. Однореляционный, поэтому используется
+не для гетерогенности, а для сравнения функций потерь и режимов негативного сэмплирования.
+
+## Структура репозитория
+
 ```
-В VS Code открыть `notebooks/favegraph.ipynb` и выбрать kernel из `.venv`.
+data/processed/
+  favegraph_frac0.02/      обработанный FaveGraph
+  yelp/                    обработанный Yelp
 
-## Запуск
+notebooks/
+  favegraph.ipynb              обработка датасета FaveGraph -> граф
+  favegraph_twhin_done.ipynb   обучение и оценка на FaveGraph
+  yelp-d.ipynb                 обработка датасета Yelp -> гетерограф
+  yelp_twhin_normalized.ipynb  обучение и оценка на Yelp (гетерогенность, ablation, mixture)
+```
 
-Настройки в ячейке конфига:
+## Пайплайн
 
-| параметр | смысл | по умолчанию |
-|---|---|---|
-| `USER_FRAC` | доля юзеров в подвыборке (`None` = весь граф) | `0.02` |
-| `TRAIN_MAX` / `VAL_MAX` | границы временного сплита по `time_chunk` (1..192) | `180` / `186` |
-| `SEED` | сид подвыборки | `42` |
+Для каждого датасета: **обработка** (ноутбук-препроцессинг строит граф из исходных
+данных и сохраняет триплеты/словари) -> **обучение и оценка** (ноутбук обучает TransE
+и считает downstream-метрики).
 
-Каждый `USER_FRAC` пишется в свою папку (`favegraph_frac0.02`, `favegraph_full`, …)
+- **FaveGraph:** `favegraph.ipynb` -> `favegraph_twhin_done.ipynb`
+- **Yelp:** `yelp-d.ipynb` -> `yelp_twhin_normalized.ipynb`
 
-## Что на выходе
-Папка `data/processed/favegraph_<вариант подвыборки>/`:
+## Форматы данных
 
-**`triples.parquet`** — ребра графа:
+**`triples.parquet`** — рёбра графа:
 
 | колонка | тип | смысл |
 |---|---|---|
@@ -51,19 +71,32 @@ python -m pip install polars pyarrow huggingface_hub matplotlib ipykernel ipywid
 | `rhs` | int64 | глобальный ID target-сущности |
 | `split` | str | `train` / `val` / `test` |
 
-**`entities.parquet`** — словарь сущностей:
+**`entities.parquet`** — словарь сущностей (`entity_id`, `entity_type`, `original_id`).
+ID глобальные и сквозные: единое пространство для всех типов сущностей, без коллизий.
 
-| колонка | тип | смысл |
-|---|---|---|
-| `entity_id` | int64 | глобальный ID (как в триплетах) |
-| `entity_type` | str | `user` / `tweet` |
-| `orig_id` | str | исходный ID из датасета |
+**`relations.parquet`** — словарь отношений.
 
-**`relations.parquet`** — словарь отношений (`rel` int32 -> `rel_name` str; здесь только `fave`).
+## Метрики
 
-**`split_report.json`** — счетчики сплита и параметры прогона.
+Оценка на замороженных эмбеддингах:
 
-### Соглашения
-- ID **глобальные и сквозные**: одно пространство для users и tweets, коллизий нет.
-- Ребра **направленные**.
-- Дубликаты ребер удалены; при повторах берется ранний `time_chunk`.
+- **Candidate generation** (аналог Who-to-Follow): Recall@10/20/50, MRR; сравнение
+  unimodal vs mixture; бейзлайны random и most-popular.
+- **Engagement ranking** (аналог ad ranking): ROC-AUC, PR-AUC, RCE.
+- **Контент-классификация** (аналог offensive detection, на Yelp — метка `useful`): PR-AUC, ROC-AUC.
+
+## Запуск
+
+```bash
+git clone git@github.com:amzZzJ/TwHIN_project.git
+cd TwHIN_project
+python3 -m venv .venv && source .venv/bin/activate
+python -m pip install torch pandas pyarrow scikit-learn faiss-cpu tqdm matplotlib huggingface_hub ipykernel
+```
+
+Открыть нужный ноутбук, при необходимости поправить пути в ячейке конфига (раздел 0),
+запустить сверху вниз. Обучение рассчитано на одну GPU (~12 ГБ VRAM).
+
+## Команда
+
+Никита Шириков, Анна Попова, Амина Джалилова - НИУ ВШЭ.
